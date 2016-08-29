@@ -89,7 +89,6 @@ func New(cfg *Config) (*Client, error) {
 		client.cl = cfg.Client
 	}
 	go client.run()
-	//go client.read()
 	return client, nil
 }
 
@@ -129,6 +128,9 @@ func (c *Client) run() {
 			f, ok := c.listeners[event.Event]
 			if !ok {
 				continue
+			}
+			if event.ID != "" {
+				c.last = event.ID
 			}
 			f(event)
 		case <-c.stopChan:
@@ -244,9 +246,9 @@ func (c *Client) fireOpen() {
 }
 
 func (c *Client) fireErrorAndRecover(err error) {
-	c.reconnect()
 	event := new(Event)
 	event.Event = "error"
 	event.Data = err.Error()
 	c.event <- *event
+	c.reconnect()
 }
