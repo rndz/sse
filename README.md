@@ -1,6 +1,7 @@
 # Go library for SSE (Server-Sent Events) client
 
 Implementation of Server-Sent Events [EventSource][eventsource] interface.
+Still work in progress - API might break!
 
 Simple usage:
 ```go
