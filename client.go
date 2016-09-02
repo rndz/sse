@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -21,13 +22,14 @@ const (
 
 // Client is main struct that handles connecting/streaming/etc...
 type Client struct {
-	cl       *http.Client
-	req      *http.Request
-	r        io.ReadCloser
-	last     string
-	retry    time.Duration
-	stopChan chan struct{}
-	event    chan Event
+	cl        *http.Client
+	req       *http.Request
+	r         io.ReadCloser
+	last      string
+	retry     time.Duration
+	retryChan chan time.Duration
+	stopChan  chan struct{}
+	event     chan Event
 
 	add       chan listener
 	listeners map[string]func(Event)
@@ -82,6 +84,7 @@ func New(cfg *Config) (*Client, error) {
 		event:      make(chan Event),
 		add:        make(chan listener),
 		stopChan:   make(chan struct{}),
+		retryChan:  make(chan time.Duration),
 		listeners:  make(map[string]func(Event)),
 	}
 	client.cl = http.DefaultClient
@@ -133,6 +136,8 @@ func (c *Client) run() {
 				c.last = event.ID
 			}
 			f(event)
+		case val := <-c.retryChan:
+			c.retry = val
 		case <-c.stopChan:
 			return
 		}
@@ -194,6 +199,12 @@ func (c *Client) decode() {
 				event.Data += value + "\n"
 			case "id":
 				event.ID = value
+			case "retry":
+				retry, err := strconv.Atoi(value)
+				if err != nil {
+					break
+				}
+				c.retryChan <- time.Duration(retry) * time.Millisecond
 			}
 		}
 		event.Data = strings.TrimSuffix(event.Data, "\n")
