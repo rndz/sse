@@ -27,9 +27,9 @@ type Client struct {
 	r         io.ReadCloser
 	last      string
 	retry     time.Duration
+	eventChan chan Event
 	retryChan chan time.Duration
 	stopChan  chan struct{}
-	event     chan Event
 
 	add       chan listener
 	listeners map[string]func(Event)
@@ -81,10 +81,10 @@ func New(cfg *Config) (*Client, error) {
 		readyState: stateConnecting,
 		req:        req,
 		retry:      retry,
-		event:      make(chan Event),
-		add:        make(chan listener),
+		eventChan:  make(chan Event, 1),
+		retryChan:  make(chan time.Duration, 1),
 		stopChan:   make(chan struct{}),
-		retryChan:  make(chan time.Duration),
+		add:        make(chan listener),
 		listeners:  make(map[string]func(Event)),
 	}
 	client.cl = http.DefaultClient
@@ -127,7 +127,7 @@ func (c *Client) run() {
 		select {
 		case l := <-c.add:
 			c.listeners[l.name] = l.f
-		case event := <-c.event:
+		case event := <-c.eventChan:
 			f, ok := c.listeners[event.Event]
 			if !ok {
 				continue
@@ -208,7 +208,7 @@ func (c *Client) decode() {
 			}
 		}
 		event.Data = strings.TrimSuffix(event.Data, "\n")
-		c.event <- *event
+		c.eventChan <- *event
 	}
 }
 
@@ -253,13 +253,13 @@ func (c *Client) fireOpen() {
 	go c.read()
 	event := new(Event)
 	event.Event = "open"
-	c.event <- *event
+	c.eventChan <- *event
 }
 
 func (c *Client) fireErrorAndRecover(err error) {
 	event := new(Event)
 	event.Event = "error"
 	event.Data = err.Error()
-	c.event <- *event
+	c.eventChan <- *event
 	c.reconnect()
 }
