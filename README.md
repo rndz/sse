@@ -3,7 +3,7 @@
 Implementation of Server-Sent Events [EventSource][eventsource] interface.
 
 Simple usage:
-```
+```go
 package main
 
 import (
