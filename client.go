@@ -257,9 +257,11 @@ func (c *Client) fireOpen() {
 }
 
 func (c *Client) fireErrorAndRecover(err error) {
-	event := new(Event)
-	event.Event = "error"
-	event.Data = err.Error()
-	c.eventChan <- *event
+	if err != io.EOF {
+		event := new(Event)
+		event.Event = "error"
+		event.Data = err.Error()
+		c.eventChan <- *event
+	}
 	c.reconnect()
 }
