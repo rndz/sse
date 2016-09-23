@@ -1,4 +1,4 @@
-package main
+package sse_test
 
 import (
 	"fmt"
@@ -9,12 +9,9 @@ import (
 	"github.com/rndz/sse"
 )
 
-func main() {
+func Example() {
 	s := &Server{}
-	go func() {
-		time.Sleep(1 * time.Second)
-		client()
-	}()
+	go runClient()
 	log.Fatal("HTTP server error: ", http.ListenAndServe("localhost:3000", s))
 }
 
@@ -41,7 +38,8 @@ func (s *Server) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func client() {
+func runClient() {
+	time.Sleep(1 * time.Second)
 	cfg := &sse.Config{
 		URL: "http://localhost:3000",
 	}

@@ -1,5 +1,7 @@
 # Go library for SSE (Server-Sent Events) client
 
+[![GoDoc](https://godoc.org/github.com/rndz/sse?status.svg)](http://godoc.org/github.com/rndz/sse)
+
 Implementation of Server-Sent Events [EventSource][eventsource] interface.
 Still work in progress - API might break!
 
