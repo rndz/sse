@@ -25,7 +25,6 @@ type Client struct {
 	cl        *http.Client
 	req       *http.Request
 	r         io.ReadCloser
-	last      string
 	retry     time.Duration
 	eventChan chan Event
 	retryChan chan time.Duration
@@ -36,6 +35,7 @@ type Client struct {
 
 	sync.RWMutex
 	readyState state
+	last       string
 }
 
 type listener struct {
@@ -51,15 +51,17 @@ type Event struct {
 }
 
 // Config is a struct used to define and override default parameters:
-//   Client - *http.Client, if non provided, http.DefaultClient will be used.
-//   URL    - URL of SSE stream to connect to. Must be provided. No default
-//            value.
-//   Retry  - time.Duration of how long should SSE client wait before trying
-//            to reconnect after disconnection. Default is 2 seconds.
+//   Client      - *http.Client, if non provided, http.DefaultClient will be used.
+//   URL         - URL of SSE stream to connect to. Must be provided. No default
+//                 value.
+//   Retry       - time.Duration of how long should SSE client wait before trying
+//                 to reconnect after disconnection. Default is 2 seconds.
+//   LastEventID - set LastEventID for the first requests.
 type Config struct {
-	Client *http.Client
-	URL    string
-	Retry  time.Duration
+	Client      *http.Client
+	URL         string
+	Retry       time.Duration
+	LastEventID string
 }
 
 // New creates a client based on a passed Config.
@@ -79,6 +81,7 @@ func New(cfg *Config) (*Client, error) {
 	}
 	client := &Client{
 		readyState: stateConnecting,
+		last:       cfg.LastEventID,
 		req:        req,
 		retry:      retry,
 		eventChan:  make(chan Event, 1),
@@ -133,7 +136,9 @@ func (c *Client) run() {
 				continue
 			}
 			if event.ID != "" {
+				c.Lock()
 				c.last = event.ID
+				c.Unlock()
 			}
 			f(event)
 		case val := <-c.retryChan:
@@ -213,7 +218,9 @@ func (c *Client) decode() {
 }
 
 func (c *Client) connect() {
+	c.RLock()
 	c.req.Header.Set("Last-Event-ID", c.last)
+	c.RUnlock()
 	resp, err := c.cl.Do(c.req)
 	if err != nil {
 		go c.connect()
